@@ -1,0 +1,310 @@
+
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>网页小游戏合集</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f0f0;
+        }
+        .game-container {
+            margin: 20px auto;
+            padding: 20px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            max-width: 800px;
+        }
+        .game {
+            margin-bottom: 30px;
+        }
+        h1 {
+            color: #333;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        /* 记忆游戏样式 */
+        #memory-board {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+            margin: 20px auto;
+            max-width: 500px;
+        }
+        .memory-card {
+            height: 100px;
+            background-color: #2196F3;
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 24px;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: transform 0.3s;
+        }
+        .memory-card.flipped {
+            background-color: #ff9800;
+            transform: rotateY(180deg);
+        }
+        
+        /* 打砖块游戏样式 */
+        #breakout {
+            background-color: #333;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>网页小游戏合集</h1>
+        
+        <div class="game">
+            <h2>记忆配对游戏</h2>
+            <p>点击卡片找出所有匹配的对子</p>
+            <button id="start-memory">开始游戏</button>
+            <div id="memory-board"></div>
+            <p id="memory-score">匹配对数: 0</p>
+        </div>
+        
+        <div class="game">
+            <h2>打砖块游戏</h2>
+            <p>使用左右方向键移动挡板</p>
+            <button id="start-breakout">开始游戏</button>
+            <canvas id="breakout" width="400" height="400"></canvas>
+        </div>
+    </div>
+
+    <script>
+        // 记忆游戏逻辑
+        const memoryCards = ['A', 'A', 'B', 'B', 'C', 'C', 'D', 'D', 'E', 'E', 'F', 'F', 'G', 'G', 'H', 'H'];
+        let flippedCards = [];
+        let matchedPairs = 0;
+        
+        document.getElementById('start-memory').addEventListener('click', startMemoryGame);
+        
+        function startMemoryGame() {
+            const board = document.getElementById('memory-board');
+            board.innerHTML = '';
+            matchedPairs = 0;
+            document.getElementById('memory-score').textContent = '匹配对数: 0';
+            
+            // 洗牌
+            const shuffledCards = [...memoryCards].sort(() => Math.random() - 0.5);
+            
+            shuffledCards.forEach((card, index) => {
+                const cardElement = document.createElement('div');
+                cardElement.classList.add('memory-card');
+                cardElement.dataset.value = card;
+                cardElement.dataset.index = index;
+                cardElement.addEventListener('click', flipCard);
+                board.appendChild(cardElement);
+            });
+        }
+        
+        function flipCard() {
+            if (flippedCards.length < 2 && !this.classList.contains('flipped')) {
+                this.classList.add('flipped');
+                this.textContent = this.dataset.value;
+                flippedCards.push(this);
+                
+                if (flippedCards.length === 2) {
+                    setTimeout(checkForMatch, 500);
+                }
+            }
+        }
+        
+        function checkForMatch() {
+            const [card1, card2] = flippedCards;
+            
+            if (card1.dataset.value === card2.dataset.value) {
+                card1.removeEventListener('click', flipCard);
+                card2.removeEventListener('click', flipCard);
+                matchedPairs++;
+                document.getElementById('memory-score').textContent = `匹配对数: ${matchedPairs}`;
+                
+                if (matchedPairs === memoryCards.length / 2) {
+                    setTimeout(() => alert('恭喜你完成了记忆游戏！'), 300);
+                }
+            } else {
+                card1.classList.remove('flipped');
+                card2.classList.remove('flipped');
+                card1.textContent = '';
+                card2.textContent = '';
+            }
+            
+            flippedCards = [];
+        }
+        
+        // 打砖块游戏逻辑
+        document.getElementById('start-breakout').addEventListener('click', startBreakoutGame);
+        
+        function startBreakoutGame() {
+            const canvas = document.getElementById('breakout');
+            const ctx = canvas.getContext('2d');
+            
+            // 游戏变量
+            let paddleWidth = 75;
+            let paddleHeight = 10;
+            let paddleX = (canvas.width - paddleWidth) / 2;
+            let rightPressed = false;
+            let leftPressed = false;
+            let ballX = canvas.width / 2;
+            let ballY = canvas.height - 30;
+            let ballRadius = 10;
+            let dx = 2;
+            let dy = -2;
+            let brickRowCount = 3;
+            let brickColumnCount = 5;
+            let brickWidth = 75;
+            let brickHeight = 20;
+            let brickPadding = 10;
+            let brickOffsetTop = 30;
+            let brickOffsetLeft = 30;
+            let score = 0;
+            
+            // 创建砖块
+            let bricks = [];
+            for (let c = 0; c < brickColumnCount; c++) {
+                bricks[c] = [];
+                for (let r = 0; r < brickRowCount; r++) {
+                    bricks[c][r] = { x: 0, y: 0, status: 1 };
+                }
+            }
+            
+            // 键盘控制
+            document.addEventListener('keydown', keyDownHandler);
+            document.addEventListener('keyup', keyUpHandler);
+            
+            function keyDownHandler(e) {
+                if (e.key === 'Right' || e.key === 'ArrowRight') {
+                    rightPressed = true;
+                } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                    leftPressed = true;
+                }
+            }
+            
+            function keyUpHandler(e) {
+                if (e.key === 'Right' || e.key === 'ArrowRight') {
+                    rightPressed = false;
+                } else if (e.key === 'Left' || e.key === 'ArrowLeft') {
+                    leftPressed = false;
+                }
+            }
+            
+            // 碰撞检测
+            function collisionDetection() {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        let brick = bricks[c][r];
+                        if (brick.status === 1) {
+                            if (ballX > brick.x && ballX < brick.x + brickWidth &&
+                                ballY > brick.y && ballY < brick.y + brickHeight) {
+                                dy = -dy;
+                                brick.status = 0;
+                                score++;
+                                if (score === brickRowCount * brickColumnCount) {
+                                    alert("恭喜你赢了！");
+                                    document.location.reload();
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // 绘制砖块
+            function drawBricks() {
+                for (let c = 0; c < brickColumnCount; c++) {
+                    for (let r = 0; r < brickRowCount; r++) {
+                        if (bricks[c][r].status === 1) {
+                            let brickX = c * (brickWidth + brickPadding) + brickOffsetLeft;
+                            let brickY = r * (brickHeight + brickPadding) + brickOffsetTop;
+                            bricks[c][r].x = brickX;
+                            bricks[c][r].y = brickY;
+                            ctx.beginPath();
+                            ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                            ctx.fillStyle = "#0095DD";
+                            ctx.fill();
+                            ctx.closePath();
+                        }
+                    }
+                }
+            }
+            
+            // 绘制挡板
+            function drawPaddle() {
+                ctx.beginPath();
+                ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
+                ctx.fillStyle = "#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            }
+            
+            // 绘制球
+            function drawBall() {
+                ctx.beginPath();
+                ctx.arc(ballX, ballY, ballRadius, 0, Math.PI * 2);
+                ctx.fillStyle = "#0095DD";
+                ctx.fill();
+                ctx.closePath();
+            }
+            
+            // 主绘制函数
+            function draw() {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawBricks();
+                drawPaddle();
+                drawBall();
+                collisionDetection();
+                
+                // 球碰到边界
+                if (ballX + dx > canvas.width - ballRadius || ballX + dx < ballRadius) {
+                    dx = -dx;
+                }
+                if (ballY + dy < ballRadius) {
+                    dy = -dy;
+                } else if (ballY + dy > canvas.height - ballRadius) {
+                    if (ballX > paddleX && ballX < paddleX + paddleWidth) {
+                        dy = -dy;
+                    } else {
+                        alert("游戏结束！");
+                        document.location.reload();
+                    }
+                }
+                
+                // 挡板移动
+                if (rightPressed && paddleX < canvas.width - paddleWidth) {
+                    paddleX += 7;
+                } else if (leftPressed && paddleX > 0) {
+                    paddleX -= 7;
+                }
+                
+                ballX += dx;
+                ballY += dy;
+                
+                requestAnimationFrame(draw);
+            }
+            
+            draw();
+        }
+    </script>
+</body>
+</html>
